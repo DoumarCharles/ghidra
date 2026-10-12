@@ -299,3 +299,27 @@ def test_import_ghidra_base_java_packages():
         import pdb_.doesntexist
     except ImportError:
         pass
+
+
+def test_static_field_not_shadowed_by_property():
+    """
+    A bean getter whose property name collides with a public static field must not
+    install a property that shadows the field (PointerDataType.dataType is the real
+    world case: static field `dataType` plus instance getter `getDataType()`).
+    """
+    if not jpype.isJVMStarted():
+        pyghidra.launcher.HeadlessPyGhidraLauncher().start()
+
+    from ghidra.program.model.data import (
+        PointerDataType, ByteDataType, DWordDataType, PascalString255DataType
+    )
+    assert PointerDataType.dataType.name == "pointer"
+    assert isinstance(PointerDataType.dataType, PointerDataType)
+    # instance getter remains reachable
+    assert PointerDataType.dataType.getDataType() is None
+    # non colliding classes are unaffected
+    assert ByteDataType.dataType.name == "byte"
+    assert DWordDataType.dataType.name == "dword"
+    assert PascalString255DataType.dataType.name == "PascalString255"
+    # regular properties still work on instances
+    assert PointerDataType.dataType.length == PointerDataType.dataType.getLength()

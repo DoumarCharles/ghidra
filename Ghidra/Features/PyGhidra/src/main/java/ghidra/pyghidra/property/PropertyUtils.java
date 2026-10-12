@@ -18,6 +18,7 @@ package ghidra.pyghidra.property;
 import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.MethodHandles.Lookup;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.*;
@@ -112,9 +113,17 @@ public class PropertyUtils {
 			// skip illegal lookup class
 			return new JavaProperty<?>[0];
 		}
+		// A property must not shadow a public static field of the same name, otherwise
+		// class level access to the field (e.g. PointerDataType.dataType) would hit the
+		// property instead of the field.
+		Set<String> staticFields = Arrays.stream(cls.getFields())
+				.filter(f -> Modifier.isStatic(f.getModifiers()))
+				.map(Field::getName)
+				.collect(Collectors.toSet());
 		return getMethods(cls)
 				.filter(PropertyUtils::methodFilter)
 				.map(PropertyUtils::toProperty)
+				.filter(p -> !staticFields.contains(p.getName()))
 				.collect(Collectors.groupingBy(PartialProperty::getName))
 				.values()
 				.stream()
